@@ -230,16 +230,13 @@ hist_df = hist_df[
 
 
 # ---------------------------------------------------------
-# 관객 수의 최솟값 / 최댓값
+# 관객 수 최솟값 / 최댓값
 # ---------------------------------------------------------
 min_audience = hist_df["total_audi"].min()
 max_audience = hist_df["total_audi"].max()
 
-
-# ---------------------------------------------------------
-# 10개 구간으로 나누기
-# ---------------------------------------------------------
 bin_count = 10
+
 
 if max_audience > min_audience:
 
@@ -247,7 +244,6 @@ if max_audience > min_audience:
         max_audience - min_audience
     ) / bin_count
 
-    # 각 영화가 어느 구간에 속하는지 계산
     hist_df["관객구간"] = pd.cut(
         hist_df["total_audi"],
         bins=bin_count
@@ -259,7 +255,6 @@ if max_audience > min_audience:
         .sort_index()
     )
 
-    # 영화가 가장 많이 들어 있는 구간
     most_common_bin = bin_counts.idxmax()
     most_common_count = bin_counts.max()
 
@@ -308,8 +303,6 @@ st.plotly_chart(
 # =========================================================
 # 그래프 3 해석
 # =========================================================
-
-# 가장 관객이 많은 영화
 max_movie_row = hist_df.loc[
     hist_df["total_audi"].idxmax()
 ]
@@ -346,12 +339,126 @@ st.write(
 
 # =========================================================
 # 그래프 4
+# 개봉일 스크린 수 ↔ 총 관객 수 산점도
+# =========================================================
+st.divider()
+
+st.header("🔵 그래프 4. 개봉일 스크린 수와 총 관객 수의 관계")
+
+st.write(
+    "개봉일에 확보한 스크린 수와 영화의 총 관객 수 사이의 "
+    "관계를 살펴봅니다."
+)
+
+
+# ---------------------------------------------------------
+# 산점도용 데이터
+# ---------------------------------------------------------
+scatter_df = df.dropna(
+    subset=[
+        "movieNm",
+        "genre",
+        "first_scrn",
+        "total_audi"
+    ]
+).copy()
+
+# 정상적인 값만 사용
+scatter_df = scatter_df[
+    (scatter_df["first_scrn"] >= 0) &
+    (scatter_df["total_audi"] >= 0)
+].copy()
+
+
+# ---------------------------------------------------------
+# 산점도 만들기
+# ---------------------------------------------------------
+fig4 = go.Figure()
+
+
+# 장르별로 하나씩 그래프를 만들어
+# 장르마다 다른 색이 나타나도록 함
+for genre in sorted(scatter_df["genre"].unique()):
+
+    genre_df = scatter_df[
+        scatter_df["genre"] == genre
+    ]
+
+    fig4.add_trace(
+        go.Scatter(
+            x=genre_df["first_scrn"],
+            y=genre_df["total_audi"],
+
+            mode="markers",
+
+            name=genre,
+
+            marker=dict(
+                size=10,
+                opacity=0.75
+            ),
+
+            # 마우스를 올렸을 때 표시할 영화명
+            text=genre_df["movieNm"],
+
+            hovertemplate=(
+                "<b>%{text}</b><br>"
+                "장르: " + genre + "<br>"
+                "개봉일 스크린 수: %{x:,}개<br>"
+                "총 관객: %{y:,}명"
+                "<extra></extra>"
+            )
+        )
+    )
+
+
+# ---------------------------------------------------------
+# 그래프 모양 설정
+# ---------------------------------------------------------
+fig4.update_layout(
+    title="개봉일 스크린 수와 총 관객 수",
+    xaxis_title="개봉일 스크린 수",
+    yaxis_title="총 관객 수",
+
+    margin=dict(
+        t=70,
+        l=70,
+        r=30,
+        b=70
+    ),
+
+    height=650,
+
+    legend_title="장르",
+
+    hovermode="closest"
+)
+
+
+st.plotly_chart(
+    fig4,
+    use_container_width=True
+)
+
+
+# ---------------------------------------------------------
+# 그래프 4 해석 공간
+# ---------------------------------------------------------
+st.markdown("### 💡 이 그래프로 알 수 있는 것")
+st.write(
+    "개봉일 스크린 수가 많은 영화와 총 관객 수가 많은 영화가 "
+    "어떤 관계를 보이는지 살펴볼 수 있습니다."
+)
+
+
+# =========================================================
+# 그래프 5
 # 앞으로 추가할 그래프
 # =========================================================
 
 st.divider()
 
-st.header("📈 그래프 4")
+st.header("📈 그래프 5")
 st.write("다음 그래프를 여기에 추가합니다.")
 
 st.markdown("### 💡 이 그래프로 알 수 있는 것")
