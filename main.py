@@ -124,15 +124,12 @@ st.write(
 
 
 # ---------------------------------------------------------
-# 트리맵용 데이터 만들기
+# 트리맵용 데이터
 # ---------------------------------------------------------
-
-# 총 관객이 없는 영화는 제외
 treemap_df = df.dropna(
     subset=["movieNm", "genre", "total_audi"]
 ).copy()
 
-# 총 관객이 음수인 이상 데이터 제거
 treemap_df = treemap_df[
     treemap_df["total_audi"] >= 0
 ].copy()
@@ -158,10 +155,12 @@ movie_parents = treemap_df["genre"].tolist()
 movie_values = treemap_df["total_audi"].tolist()
 
 
-# 전체 데이터 합치기
+# 전체 데이터
 labels = ["영화 전체"] + genre_labels + movie_labels
 parents = [""] + genre_parents + movie_parents
-values = [treemap_df["total_audi"].sum()] + genre_values + movie_values
+values = [
+    treemap_df["total_audi"].sum()
+] + genre_values + movie_values
 
 
 # ---------------------------------------------------------
@@ -174,31 +173,23 @@ fig2 = go.Figure(
         values=values,
         branchvalues="total",
 
-        # 영화명과 총 관객을 마우스 오버로 표시
         hovertemplate=(
             "<b>%{label}</b><br>"
             "총 관객: %{value:,}명"
             "<extra></extra>"
         ),
 
-        # 화면 안에는 영화명을 표시
         textinfo="label",
-
-        # 너무 작은 칸의 글자는 자동으로 숨김
         insidetextfont=dict(size=13),
-
-        # 트리맵의 가장 바깥 영역
         root_color="lightgray"
     )
 )
-
 
 fig2.update_layout(
     title="장르 안에 들어 있는 영화와 총 관객 수",
     margin=dict(t=60, l=10, r=10, b=10),
     height=750
 )
-
 
 st.plotly_chart(
     fig2,
@@ -215,12 +206,152 @@ st.write("")
 
 # =========================================================
 # 그래프 3
+# 총 관객 수 히스토그램
+# =========================================================
+st.divider()
+
+st.header("📊 그래프 3. 영화별 총 관객 수 분포")
+
+st.write(
+    "영화별 총 관객 수가 어느 구간에 많이 몰려 있는지 확인합니다."
+)
+
+
+# ---------------------------------------------------------
+# 히스토그램용 데이터
+# ---------------------------------------------------------
+hist_df = df.dropna(
+    subset=["movieNm", "total_audi"]
+).copy()
+
+hist_df = hist_df[
+    hist_df["total_audi"] >= 0
+].copy()
+
+
+# ---------------------------------------------------------
+# 관객 수의 최솟값 / 최댓값
+# ---------------------------------------------------------
+min_audience = hist_df["total_audi"].min()
+max_audience = hist_df["total_audi"].max()
+
+
+# ---------------------------------------------------------
+# 10개 구간으로 나누기
+# ---------------------------------------------------------
+bin_count = 10
+
+if max_audience > min_audience:
+
+    bin_width = (
+        max_audience - min_audience
+    ) / bin_count
+
+    # 각 영화가 어느 구간에 속하는지 계산
+    hist_df["관객구간"] = pd.cut(
+        hist_df["total_audi"],
+        bins=bin_count
+    )
+
+    bin_counts = (
+        hist_df["관객구간"]
+        .value_counts()
+        .sort_index()
+    )
+
+    # 영화가 가장 많이 들어 있는 구간
+    most_common_bin = bin_counts.idxmax()
+    most_common_count = bin_counts.max()
+
+else:
+    bin_width = 1
+    most_common_bin = None
+    most_common_count = len(hist_df)
+
+
+# ---------------------------------------------------------
+# 히스토그램
+# ---------------------------------------------------------
+fig3 = go.Figure()
+
+fig3.add_trace(
+    go.Histogram(
+        x=hist_df["total_audi"],
+        xbins=dict(
+            start=min_audience,
+            end=max_audience,
+            size=bin_width
+        ),
+        hovertemplate=(
+            "총 관객 구간: %{x}<br>"
+            "영화 수: %{y}편"
+            "<extra></extra>"
+        )
+    )
+)
+
+fig3.update_layout(
+    title="영화별 총 관객 수 분포",
+    xaxis_title="총 관객 수",
+    yaxis_title="영화 수",
+    bargap=0.05,
+    margin=dict(t=60, l=60, r=30, b=60),
+    height=550
+)
+
+st.plotly_chart(
+    fig3,
+    use_container_width=True
+)
+
+
+# =========================================================
+# 그래프 3 해석
+# =========================================================
+
+# 가장 관객이 많은 영화
+max_movie_row = hist_df.loc[
+    hist_df["total_audi"].idxmax()
+]
+
+max_movie_name = max_movie_row["movieNm"]
+max_movie_audience = int(max_movie_row["total_audi"])
+
+
+st.markdown("### 💡 이 그래프로 알 수 있는 것")
+
+if most_common_bin is not None:
+
+    lower = most_common_bin.left
+    upper = most_common_bin.right
+
+    st.write(
+        f"대부분의 영화는 **{lower:,.0f}명 ~ {upper:,.0f}명** "
+        f"구간에 가장 많이 몰려 있으며, "
+        f"이 구간에는 **{most_common_count}편**의 영화가 있습니다."
+    )
+
+else:
+
+    st.write(
+        "영화들의 총 관객 수가 같은 값으로 나타납니다."
+    )
+
+
+st.write(
+    f"가장 관객이 많은 영화는 **{max_movie_name}**으로, "
+    f"총 관객 수는 **{max_movie_audience:,}명**입니다."
+)
+
+
+# =========================================================
+# 그래프 4
 # 앞으로 추가할 그래프
 # =========================================================
 
 st.divider()
 
-st.header("📈 그래프 3")
+st.header("📈 그래프 4")
 st.write("다음 그래프를 여기에 추가합니다.")
 
 st.markdown("### 💡 이 그래프로 알 수 있는 것")
